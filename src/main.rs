@@ -148,6 +148,7 @@ fn main() -> Result<(), Error> {
                 &ssh_user.unwrap(),
                 &ssh_password.unwrap(),
             );
+
             Ok(())
         }
         _ => unreachable!(),
