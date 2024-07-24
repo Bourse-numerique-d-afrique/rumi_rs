@@ -1,0 +1,9 @@
+[package]
+name = "rumi"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+clap = "4.5.10"
+ssh2 = "0.9.4"
