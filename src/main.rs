@@ -10,6 +10,9 @@ use std::path::PathBuf;
 
 use clap::{arg, Command};
 
+
+
+
 fn cli() -> Command {
     Command::new("hosting")
         .about("Hosting cli to help publish new website to a server via ssh")

@@ -1,4 +1,15 @@
+mod commands;
+
+pub const SERVER_BIN_PATH: &str = "/usr/local/bin/";
+pub const NGINX_WEB_CONFIG_PATH: &str = "/etc/nginx/sites-available/"; // where to put the config file for the website
+pub const WEB_FOLDER: &str = "/var/www/"; // where to put the website files
+pub const SSL_CERTIFICATE_PATH: &str = "/etc/letsencrypt/live/"; // where to put the ssl certificate
+pub const SSL_CERTIFICATE_KEY_PATH: &str = "/etc/letsencrypt/live/"; // where to put the ssl certificate key
+pub const ETH_GETH_NGINX_CONFIG_PATH: &str = "/etc/nginx/conf.d/geth.conf"; // where to put the config file for ethereum
+
 pub mod utils {
+    use std::{fs::{self, File}, io::{Read, Write}, path::Path};
+
     pub fn get_web_nginx_config_file<'a>(
         domain: &'a str,
         ssl_fullchain_path: &'a str,
@@ -20,7 +31,8 @@ pub mod utils {
                  server_name  {domain} www.{domain};
                  ssl_certificate {ssl_fullchain_path};
                  ssl_certificate_key {ssl_pem_path};
-
+                 root {website_dist_path};
+                 index  index.html;
                  location / {{
                       root   {website_dist_path};
                       index  index.html;
@@ -73,11 +85,11 @@ pub mod utils {
         newtork_id: &'a i32,
         http_address_ip: &'a str,
         ext_ip: &'a str,
-        address: &'a str,
+        unlock_wallet_address: &'a str,
         ws_address_ip: &'a str,
     ) -> String {
         format!(
-            r#"geth --networkid {newtork_id}  --datadir data --nodiscover --http --http.port "8545"  --port "30303" --http.addr "{http_address_ip}"  --http.corsdomain "*" --nat any --http.api "eth,web3,personal,net,miner,admin" --http.vhosts "*" --nat extip:{ext_ip}  --unlock '{address}' --password './password.sec'  --mine --miner.threads 4  --ipcpath "./data/geth.ipc" --allow-insecure-unlock --miner.etherbase '{address}' --miner.gasprice 1  --syncmode full --ws --ws.addr "{ws_address_ip}"  --ws.api "eth,net,web3,admin" --ws.origins "*""#
+            r#"nohup geth --networkid {newtork_id}  --datadir data --nodiscover --http --http.port "8545"  --port "30303" --http.addr "{http_address_ip}"  --http.corsdomain "*" --nat any --http.api "eth,web3,personal,net,miner,admin" --http.vhosts "*" --nat extip:{ext_ip}  --unlock '{unlock_wallet_address}' --password './password.sec'  --mine --miner.threads 4  --ipcpath "./data/geth.ipc" --allow-insecure-unlock --miner.etherbase '{unlock_wallet_address}' --miner.gasprice 1  --syncmode full --ws --ws.addr "{ws_address_ip}"  --ws.api "eth,net,web3,admin" --ws.origins "*""#
         )
     }
 
@@ -114,4 +126,44 @@ pub mod utils {
             chain_id = chain_id
         )
     }
+
+
+    pub fn upload_folder(sftp: &ssh2::Sftp, local_path: &Path, remote_path: &str) -> Result<(), Box<dyn std::error::Error>> {
+      // Create the remote directory
+      match sftp.mkdir(Path::new(remote_path), 0o755) {
+          Ok(_) => println!("Created directory: {}", remote_path),
+          Err(e) => println!("Directory already exists or failed to create: {} - {}", remote_path, e),
+      }
+  
+      // Iterate over the entries in the local directory
+      for entry in fs::read_dir(local_path)? {
+          let entry = entry?;
+          let path = entry.path();
+          let file_name = entry.file_name().into_string().unwrap();
+          let remote_file_path = format!("{}/{}", remote_path, file_name);
+  
+          if path.is_dir() {
+              // Recursively upload directories
+              upload_folder(sftp, &path, &remote_file_path)?;
+          } else {
+              // Upload files
+              upload_file(sftp, &path, &remote_file_path)?;
+          }
+      }
+  
+      Ok(())
+  }
+
+  pub fn upload_file(sftp: &ssh2::Sftp, local_file: &Path, remote_file: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let mut local_f = File::open(local_file)?;
+    let mut buffer = Vec::new();
+    local_f.read_to_end(&mut buffer)?;
+
+    let mut remote_f = sftp.create(Path::new(remote_file))?;
+    remote_f.write_all(&buffer)?;
+
+    println!("Uploaded file: {}", remote_file);
+
+    Ok(())
+}
 }
