@@ -1,14 +1,53 @@
-mod commands;
+pub mod commands;
 
-pub const SERVER_BIN_PATH: &str = "/usr/local/bin/";
-pub const NGINX_WEB_CONFIG_PATH: &str = "/etc/nginx/sites-available/"; // where to put the config file for the website
-pub const WEB_FOLDER: &str = "/var/www/"; // where to put the website files
-pub const SSL_CERTIFICATE_PATH: &str = "/etc/letsencrypt/live/"; // where to put the ssl certificate
-pub const SSL_CERTIFICATE_KEY_PATH: &str = "/etc/letsencrypt/live/"; // where to put the ssl certificate key
+pub const SERVER_BIN_PATH: &str = "/usr/local/bin";
+pub const NGINX_WEB_CONFIG_PATH: &str = "/etc/nginx/sites-available"; // where to put the config files for websites that are available
+pub const NGINX_WEB_SITE_ENABLED: &str  = "/etc/nginx/sites-enabled"; // where to put the config files for websites that are enabled
+pub const WEB_FOLDER: &str = "/var/www"; // where to put the website files
+pub const SSL_CERTIFICATE_PATH: &str = "/etc/letsencrypt/live"; // where to put the ssl certificate
+pub const SSL_CERTIFICATE_KEY_PATH: &str = "/etc/letsencrypt/live"; // where to put the ssl certificate key
 pub const ETH_GETH_NGINX_CONFIG_PATH: &str = "/etc/nginx/conf.d/geth.conf"; // where to put the config file for ethereum
 
 pub mod utils {
     use std::{fs::{self, File}, io::{Read, Write}, path::Path};
+
+    use clap::builder::Str;
+    use ssh2::{Channel, Session};
+
+    pub fn new_channel<'a>(session: &'a Session) -> Channel {
+      let channel = session.channel_session().unwrap();
+      channel
+    }
+
+    pub fn close_channel<'a>(channel: &'a mut Channel) {
+      channel.wait_close();
+    }
+
+
+    pub fn get_servers_nginx_config_file<'a>(port: &'a i32, domain: &'a str, server_port: &'a i32) -> String {
+      // the port nginx is listening doesnt change but the proxy_pass port can change has it depend
+      // on which server version is in production right now.
+      format!(
+        r#"
+        server {{
+          listen {port};
+          listen [::]:{port};
+          server_name {domain} www.{domain};
+
+          location ^~ / {{
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header Host $http_host;
+            proxy_set_header X-NginX-Proxy true;
+            proxy_pass http://127.0.0.1:{server_port}/;
+          }}
+        }}
+        "#
+      )
+    }
 
     pub fn get_web_nginx_config_file<'a>(
         domain: &'a str,
