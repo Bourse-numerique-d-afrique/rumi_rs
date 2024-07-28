@@ -7,19 +7,35 @@ use crate::utils::{new_channel, close_channel, get_servers_nginx_config_file};
 
 
 
-pub fn install_command<'a>(session: &'a Session, domain: &'a str, app_name: &'a str) {
+pub fn install_command<'a>(session: &'a Session, domain: &'a str, app_name: &'a str, bin_path: &'a str) {
     let mut chanel = new_channel(session);
     let command = chanel.exec("curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y");
     assert!(command.is_ok(), "Failed to install rust");
     close_channel(&mut chanel);
 
     let mut chanel = new_channel(session);
-    let command = chanel.exec("sudo apt install -y certbot");
-    assert!(command.is_ok(), "Failed to install certbot");
+    let command = chanel.exec("sudo apt-get -y install ufw");
+    let mut s = String::new();
+    chanel.read_to_string(&mut s).unwrap();
+    assert!(command.is_ok(), "Failed to install ufw");
+    close_channel(&mut chanel); 
+    
+    let mut chanel = new_channel(session);
+    let command = chanel.exec("sudo apt install -y nginx certbot");
+    let mut s = String::new();
+    chanel.read_to_string(&mut s).unwrap();
+    assert!(command.is_ok(), "Failed to install nginx");
     close_channel(&mut chanel);
+
+    let mut chanel = new_channel(session);
+    let command = chanel.exec("sudo ufw allow 'Nginx HTTP");
+    assert!(command.is_ok(), "Failed to allow Nginx HTTP");
+    close_channel(&mut chanel);
+
+
     let cerbot_instruction = format!("sudo certbot certonly -y --standalone -d {} -d www.{}", domain, domain);
 
-    let app_release_path = format!("~/target/release/{}", app_name);
+    let app_release_path = format!("{}/{}", bin_path, app_name);
     let remote_app_release_path = format!("/usr/local/bin/{}", app_name);
 
     let mut chanel = new_channel(session);
