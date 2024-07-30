@@ -78,13 +78,3 @@ pub fn install_command<'a>(
     nginx::make_site_enabled(session, &config_file_path);
     nginx::restart(session)
 }
-
-pub fn update_command<'a>(session: &'a Session, port: &'a i32, server_port: &'a i32) {}
-
-pub fn rollback_command<'a>(
-    session: &'a Session,
-    version_name: &'a str,
-    port: &'a i32,
-    server_port: &'a i32,
-) {
-}

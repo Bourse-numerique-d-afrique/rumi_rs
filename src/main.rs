@@ -93,7 +93,7 @@ fn main() -> Result<(), Error> {
                     .map(|s| s.as_str())
                     .expect("DIST_PATH parameter value is missing");
 
-                let version_id = install_matches
+                let _version_id = install_matches
                     .get_one::<String>("version_id")
                     .map(|s| s.as_str())
                     .expect("VERSION_ID paramer value is missing");

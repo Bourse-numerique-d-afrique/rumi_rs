@@ -187,7 +187,7 @@ pub mod utils {
     }
 
     pub fn close_channel<'a>(channel: &'a mut Channel) {
-        channel.wait_close();
+        channel.wait_close().expect("closing channel failed");
     }
 
     pub fn get_servers_nginx_config_file<'a>(
