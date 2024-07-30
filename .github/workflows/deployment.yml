@@ -1,0 +1,18 @@
+name: build
+run-name: build_test
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Install nitghly
+        run: |
+          rustup install nightly
+          rustup default nightly
+
+      - name: test
+        run: |
+          cargo test

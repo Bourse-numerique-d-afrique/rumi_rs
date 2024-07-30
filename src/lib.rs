@@ -1,34 +1,204 @@
+use ssh2::Session;
+use std::net::TcpStream;
 pub mod commands;
 
 pub const SERVER_BIN_PATH: &str = "/usr/local/bin";
 pub const NGINX_WEB_CONFIG_PATH: &str = "/etc/nginx/sites-available"; // where to put the config files for websites that are available
-pub const NGINX_WEB_SITE_ENABLED: &str  = "/etc/nginx/sites-enabled"; // where to put the config files for websites that are enabled
+pub const NGINX_WEB_SITE_ENABLED: &str = "/etc/nginx/sites-enabled"; // where to put the config files for websites that are enabled
 pub const WEB_FOLDER: &str = "/var/www"; // where to put the website files
 pub const SSL_CERTIFICATE_PATH: &str = "/etc/letsencrypt/live"; // where to put the ssl certificate
 pub const SSL_CERTIFICATE_KEY_PATH: &str = "/etc/letsencrypt/live"; // where to put the ssl certificate key
 pub const ETH_GETH_NGINX_CONFIG_PATH: &str = "/etc/nginx/conf.d/geth.conf"; // where to put the config file for ethereum
 
-pub mod utils {
-    use std::{fs::{self, File}, io::{Read, Write}, path::Path};
+pub struct Rumi2 {}
 
-    use clap::builder::Str;
+impl Rumi2 {
+    pub fn start(
+        host: String,
+        username: String,
+        pubkeydata: String,
+        privatekeydata: String,
+        passphrase: String,
+    ) -> Session {
+        let tcp = TcpStream::connect(&format!("{host}:22")).expect("Failed to connect to tcp");
+        let mut session = Session::new().expect("Session could not be started");
+        session.set_tcp_stream(tcp);
+        session.handshake().expect("handshade didn't worked");
+        session
+            .userauth_pubkey_memory(
+                &username,
+                Some(&pubkeydata),
+                &privatekeydata,
+                Some(&passphrase),
+            )
+            .expect("Unable to authenticate with the given parameters");
+        session
+    }
+}
+
+pub mod ufw {
+    use std::io::Read;
+
+    use crate::utils::{close_channel, new_channel};
+    use ssh2::Session;
+
+    /// The install command for ufw
+    ///
+    pub fn install<'a>(session: &'a Session) {
+        let mut chanel = new_channel(session);
+        let command = chanel.exec("sudo apt-get -y install ufw");
+        let mut s = String::new();
+        chanel.read_to_string(&mut s).unwrap();
+        assert!(command.is_ok(), "Failed to install ufw");
+        close_channel(&mut chanel);
+    }
+
+    pub fn allow_nginx_http<'a>(session: &'a Session) {
+        let mut chanel = new_channel(session);
+        let command = chanel.exec("sudo ufw allow 'Nginx HTTP");
+        assert!(command.is_ok(), "Failed to allow Nginx HTTP");
+        close_channel(&mut chanel);
+    }
+
+    pub fn allow_port_and_443<'a>(session: &'a Session) {
+        let mut chanel = new_channel(session);
+        let command =
+            chanel.exec("sudo ufw allow 80 && sudo ufw allow 443 && sudo systemctl restart nginx");
+        assert!(command.is_ok(), "Failed to restart nginx");
+        close_channel(&mut chanel);
+    }
+
+    pub fn allow_port<'a>(session: &'a Session, port: &'a i32) {
+        let mut chanel = new_channel(session);
+        let command_string = format!("sudo ufw allow {port} && sudo systemctl restart nginx");
+        let command = chanel.exec(&command_string);
+        assert!(command.is_ok(), "Failed to restart nginx");
+        close_channel(&mut chanel);
+    }
+}
+
+pub mod nginx {
+    use crate::utils::{close_channel, new_channel};
+    use ssh2::Session;
+    use std::io::Read;
+
+    pub fn install<'a>(session: &'a Session) {
+        let mut chanel = new_channel(session);
+        let command = chanel.exec("sudo apt install -y nginx");
+        let mut s = String::new();
+        chanel.read_to_string(&mut s).unwrap();
+        assert!(command.is_ok(), "Failed to install nginx");
+        close_channel(&mut chanel);
+    }
+
+    pub fn enable_write_to_folders<'a>(session: &'a Session) {
+        let mut chanel = new_channel(session);
+        let command = chanel.exec("sudo chmod 777 /var/www/ && sudo chmod 777 /etc/nginx/sites-available/ && sudo chmod 777 /etc/nginx/sites-enabled/");
+        assert!(command.is_ok(), "Failed to grant permissions");
+        close_channel(&mut chanel);
+    }
+
+    pub fn make_site_enabled<'a>(session: &'a Session, config_file_path: &'a str) {
+        let mut chanel = new_channel(session);
+        let command = chanel.exec(
+            format!(
+                "sudo ln -s {} /etc/nginx/sites-enabled/ && ls -a /etc/nginx/sites-enabled",
+                config_file_path
+            )
+            .as_str(),
+        );
+        let mut s = String::new();
+        chanel.read_to_string(&mut s).unwrap();
+        println!("ouptut : {:?}", s);
+        assert!(command.is_ok(), "Failed to allow port 80");
+        close_channel(&mut chanel);
+    }
+
+    pub fn remove_default_enable_folder<'a>(session: &'a Session) {
+        let mut chanel = new_channel(session);
+        let command = chanel.exec("sudo rm /etc/nginx/sites-enabled/default");
+        assert!(command.is_ok(), "Failed to remove default nginx config");
+        close_channel(&mut chanel);
+    }
+
+    pub fn restart<'a>(session: &'a Session) {
+        let mut chanel = new_channel(session);
+        let command =
+            chanel.exec("sudo ufw allow 80 && sudo ufw allow 443 && sudo systemctl restart nginx");
+        assert!(command.is_ok(), "Failed to restart nginx");
+        close_channel(&mut chanel);
+    }
+
+    pub fn reload<'a>(session: &'a Session) {
+        // reload nginx without downtime
+        let mut chanel = new_channel(session);
+        let command = chanel.exec("sudo systemctl reload nginx");
+        let mut s = String::new();
+        chanel.read_to_string(&mut s).unwrap();
+        println!("ouptut : {:?}", s);
+        assert!(command.is_ok(), "Failed to reload nginx");
+        close_channel(&mut chanel);
+    }
+}
+
+pub mod certbot {
+    use crate::utils::{close_channel, new_channel};
+    use ssh2::Session;
+    use std::io::Read;
+
+    pub fn install<'a>(session: &'a Session) {
+        let mut chanel = new_channel(session);
+        let command = chanel.exec("sudo apt install -y certbot");
+        let mut s = String::new();
+        chanel.read_to_string(&mut s).unwrap();
+        assert!(command.is_ok(), "Failed to install nginx");
+        close_channel(&mut chanel);
+    }
+
+    pub fn get_ssl_certificate_for_domain<'a>(
+        session: &'a Session,
+        domain: &'a str,
+        email: &'a str,
+    ) {
+        let cerbot_instruction = format!(
+            "sudo certbot certonly -y --standalone -d {} -d www.{} --agree-tos --email {}",
+            domain, domain, email
+        );
+
+        let mut chanel = new_channel(session);
+        let command = chanel.exec(&cerbot_instruction);
+        assert!(command.is_ok(), "Failed to create certificate");
+        close_channel(&mut chanel);
+    }
+}
+
+pub mod utils {
+    use std::{
+        fs::{self, File},
+        io::{Read, Write},
+        path::Path,
+    };
+
     use ssh2::{Channel, Session};
 
     pub fn new_channel<'a>(session: &'a Session) -> Channel {
-      let channel = session.channel_session().unwrap();
-      channel
+        let channel = session.channel_session().unwrap();
+        channel
     }
 
     pub fn close_channel<'a>(channel: &'a mut Channel) {
-      channel.wait_close();
+        channel.wait_close();
     }
 
-
-    pub fn get_servers_nginx_config_file<'a>(port: &'a i32, domain: &'a str, server_port: &'a i32) -> String {
-      // the port nginx is listening doesnt change but the proxy_pass port can change has it depend
-      // on which server version is in production right now.
-      format!(
-        r#"
+    pub fn get_servers_nginx_config_file<'a>(
+        port: &'a i32,
+        domain: &'a str,
+        server_port: &'a i32,
+    ) -> String {
+        // the port nginx is listening doesnt change but the proxy_pass port can change has it depend
+        // on which server version is in production right now.
+        format!(
+            r#"
         server {{
           listen {port};
           listen [::]:{port};
@@ -46,7 +216,7 @@ pub mod utils {
           }}
         }}
         "#
-      )
+        )
     }
 
     pub fn get_web_nginx_config_file<'a>(
@@ -166,43 +336,53 @@ pub mod utils {
         )
     }
 
+    pub fn upload_folder(
+        sftp: &ssh2::Sftp,
+        local_path: &Path,
+        remote_path: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        // Create the remote directory
+        match sftp.mkdir(Path::new(remote_path), 0o755) {
+            Ok(_) => println!("Created directory: {}", remote_path),
+            Err(e) => println!(
+                "Directory already exists or failed to create: {} - {}",
+                remote_path, e
+            ),
+        }
 
-    pub fn upload_folder(sftp: &ssh2::Sftp, local_path: &Path, remote_path: &str) -> Result<(), Box<dyn std::error::Error>> {
-      // Create the remote directory
-      match sftp.mkdir(Path::new(remote_path), 0o755) {
-          Ok(_) => println!("Created directory: {}", remote_path),
-          Err(e) => println!("Directory already exists or failed to create: {} - {}", remote_path, e),
-      }
-  
-      // Iterate over the entries in the local directory
-      for entry in fs::read_dir(local_path)? {
-          let entry = entry?;
-          let path = entry.path();
-          let file_name = entry.file_name().into_string().unwrap();
-          let remote_file_path = format!("{}/{}", remote_path, file_name);
-  
-          if path.is_dir() {
-              // Recursively upload directories
-              upload_folder(sftp, &path, &remote_file_path)?;
-          } else {
-              // Upload files
-              upload_file(sftp, &path, &remote_file_path)?;
-          }
-      }
-  
-      Ok(())
-  }
+        // Iterate over the entries in the local directory
+        for entry in fs::read_dir(local_path)? {
+            let entry = entry?;
+            let path = entry.path();
+            let file_name = entry.file_name().into_string().unwrap();
+            let remote_file_path = format!("{}/{}", remote_path, file_name);
 
-  pub fn upload_file(sftp: &ssh2::Sftp, local_file: &Path, remote_file: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let mut local_f = File::open(local_file)?;
-    let mut buffer = Vec::new();
-    local_f.read_to_end(&mut buffer)?;
+            if path.is_dir() {
+                // Recursively upload directories
+                upload_folder(sftp, &path, &remote_file_path)?;
+            } else {
+                // Upload files
+                upload_file(sftp, &path, &remote_file_path)?;
+            }
+        }
 
-    let mut remote_f = sftp.create(Path::new(remote_file))?;
-    remote_f.write_all(&buffer)?;
+        Ok(())
+    }
 
-    println!("Uploaded file: {}", remote_file);
+    pub fn upload_file(
+        sftp: &ssh2::Sftp,
+        local_file: &Path,
+        remote_file: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut local_f = File::open(local_file)?;
+        let mut buffer = Vec::new();
+        local_f.read_to_end(&mut buffer)?;
 
-    Ok(())
-}
+        let mut remote_f = sftp.create(Path::new(remote_file))?;
+        remote_f.write_all(&buffer)?;
+
+        println!("Uploaded file: {}", remote_file);
+
+        Ok(())
+    }
 }

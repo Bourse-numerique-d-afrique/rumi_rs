@@ -283,7 +283,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rumi"
+name = "rumi2"
 version = "0.1.0"
 dependencies = [
  "clap",
