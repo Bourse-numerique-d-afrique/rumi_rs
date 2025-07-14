@@ -212,7 +212,7 @@ async fn main() -> Result<()> {
         .init();
 
     // Load configuration
-    let config_path = cli.config.unwrap_or_else(|| RumiConfig::get_config_path());
+    let config_path = cli.config.unwrap_or_else(RumiConfig::get_config_path);
     let mut config = RumiConfig::load_from_file(&config_path)?;
 
     // Set dry run mode
@@ -254,7 +254,7 @@ async fn handle_hosting_commands(action: HostingCommands, config: &RumiConfig) -
             }
 
             // Install website using the existing function but with improved error handling
-            rumi2::commands::websites::install_command(&session, &domain, &dist_path.to_str().unwrap())?;
+            rumi2::commands::websites::install_command(&session, &domain, dist_path.to_str().unwrap())?;
             
             info!("Website installation completed successfully");
         }

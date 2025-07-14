@@ -1,14 +1,15 @@
 [package]
 name = "rumi2"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 authors = ["ONDONDA Prince Merveil @princefr"]
 description = "Rumi2 simplifies the process of deploying your web applications and servers. With seamless SSH2 integration, it effortlessly manages the publishing process to your existing server infrastructure, ensuring secure and efficient transfers every time."
 license = "MIT"
 repository = "https://github.com/Bourse-numerique-d-afrique/rumi_rs"
-readme = "readme.md"
-documentation = "https://docs.rs/rumi2/0.1.0/rumi2/"
-keywords = ["CLI"]
+readme = "README.md"
+documentation = "https://docs.rs/rumi2/"
+keywords = ["deployment", "ssh", "cli", "devops", "server"]
+categories = ["command-line-utilities", "development-tools", "network-programming"]
 
 [dependencies]
 clap = { version = "4.5.10", features = ["derive"] }

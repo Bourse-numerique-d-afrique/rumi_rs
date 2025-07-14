@@ -1,3 +1,64 @@
+//! # Rumi2 - Deployment Management CLI
+//!
+//! Rumi2 is a robust CLI tool for deploying web applications, servers, and blockchain nodes 
+//! with seamless SSH2 integration. It simplifies the deployment process to your existing 
+//! server infrastructure, ensuring secure and efficient transfers with comprehensive backup, 
+//! rollback, and monitoring capabilities.
+//!
+//! ## Features
+//!
+//! - **Website Hosting**: One-command deployments with automatic SSL certificate generation
+//! - **Server Management**: Binary deployment with automatic service management  
+//! - **Ethereum Node Deployment**: Full Ethereum node setup with geth
+//! - **Backup & Recovery**: Automatic backups before deployments with easy restoration
+//! - **Configuration Management**: JSON-based configuration with validation
+//! - **Security & Safety**: Dry-run mode, SSH key authentication, firewall management
+//!
+//! ## Quick Start
+//!
+//! ```bash
+//! # Initialize configuration
+//! rumi2 config init
+//!
+//! # Add SSH connection details
+//! rumi2 config add-ssh --name prod --host server.com --user deploy
+//!
+//! # Deploy a website
+//! rumi2 hosting install --name my-site --domain example.com --dist-path ./dist
+//! ```
+//!
+//! ## Architecture
+//!
+//! The library is organized into several key modules:
+//!
+//! - [`config`] - Configuration management and validation
+//! - [`session`] - SSH session management and command execution
+//! - [`backup`] - Backup and restore functionality
+//! - [`commands`] - Deployment command implementations
+//! - [`error`] - Error types and handling
+//!
+//! ## Examples
+//!
+//! ```rust,no_run
+//! use rumi2::{config::RumiConfig, session::RumiSession};
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! // Load configuration
+//! let config_path = RumiConfig::get_config_path();
+//! let config = RumiConfig::load_from_file(&config_path)?;
+//!
+//! // Create SSH session
+//! if let Some(ssh_config) = config.default_ssh {
+//!     let session = RumiSession::new(ssh_config)?;
+//!     
+//!     // Execute commands safely
+//!     let result = session.execute_command("uptime")?;
+//!     println!("Server uptime: {}", result.stdout);
+//! }
+//! # Ok(())
+//! # }
+//! ```
+
 use ssh2::Session;
 use std::net::TcpStream;
 
@@ -10,13 +71,26 @@ pub mod backup;
 #[cfg(test)]
 mod tests;
 
+/// Default path for server binary installations on Unix systems
 pub const SERVER_BIN_PATH: &str = "/usr/local/bin";
-pub const NGINX_WEB_CONFIG_PATH: &str = "/etc/nginx/sites-available"; // where to put the config files for websites that are available
-pub const NGINX_WEB_SITE_ENABLED: &str = "/etc/nginx/sites-enabled"; // where to put the config files for websites that are enabled
-pub const WEB_FOLDER: &str = "/var/www"; // where to put the website files
-pub const SSL_CERTIFICATE_PATH: &str = "/etc/letsencrypt/live"; // where to put the ssl certificate
-pub const SSL_CERTIFICATE_KEY_PATH: &str = "/etc/letsencrypt/live"; // where to put the ssl certificate key
-pub const ETH_GETH_NGINX_CONFIG_PATH: &str = "/etc/nginx/conf.d/geth.conf"; // where to put the config file for ethereum
+
+/// Path where nginx site configuration files are stored (available sites)
+pub const NGINX_WEB_CONFIG_PATH: &str = "/etc/nginx/sites-available";
+
+/// Path where nginx enabled site configuration files are symlinked
+pub const NGINX_WEB_SITE_ENABLED: &str = "/etc/nginx/sites-enabled";
+
+/// Default web root directory for hosting website files
+pub const WEB_FOLDER: &str = "/var/www";
+
+/// Path where Let's Encrypt SSL certificates are stored
+pub const SSL_CERTIFICATE_PATH: &str = "/etc/letsencrypt/live";
+
+/// Path where Let's Encrypt SSL certificate private keys are stored
+pub const SSL_CERTIFICATE_KEY_PATH: &str = "/etc/letsencrypt/live";
+
+/// Path for Ethereum geth nginx proxy configuration
+pub const ETH_GETH_NGINX_CONFIG_PATH: &str = "/etc/nginx/conf.d/geth.conf";
 
 pub struct Rumi2 {}
 

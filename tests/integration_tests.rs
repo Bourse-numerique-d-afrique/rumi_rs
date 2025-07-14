@@ -1,7 +1,6 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
 use tempfile::TempDir;
-use std::path::PathBuf;
 
 #[test]
 fn test_cli_help() {
@@ -30,7 +29,7 @@ fn test_cli_version() {
 #[test]
 fn test_hosting_subcommand_help() {
     let mut cmd = Command::cargo_bin("rumi2").unwrap();
-    cmd.args(&["hosting", "--help"]);
+    cmd.args(["hosting", "--help"]);
     
     cmd.assert()
         .success()
@@ -44,7 +43,7 @@ fn test_hosting_subcommand_help() {
 #[test]
 fn test_server_subcommand_help() {
     let mut cmd = Command::cargo_bin("rumi2").unwrap();
-    cmd.args(&["server", "--help"]);
+    cmd.args(["server", "--help"]);
     
     cmd.assert()
         .success()
@@ -59,7 +58,7 @@ fn test_server_subcommand_help() {
 #[test]
 fn test_backup_subcommand_help() {
     let mut cmd = Command::cargo_bin("rumi2").unwrap();
-    cmd.args(&["backup", "--help"]);
+    cmd.args(["backup", "--help"]);
     
     cmd.assert()
         .success()
@@ -74,7 +73,7 @@ fn test_backup_subcommand_help() {
 #[test]
 fn test_config_subcommand_help() {
     let mut cmd = Command::cargo_bin("rumi2").unwrap();
-    cmd.args(&["config", "--help"]);
+    cmd.args(["config", "--help"]);
     
     cmd.assert()
         .success()
@@ -91,7 +90,7 @@ fn test_config_init() {
     let config_path = temp_dir.path().join("test_config.json");
     
     let mut cmd = Command::cargo_bin("rumi2").unwrap();
-    cmd.args(&["--config", config_path.to_str().unwrap(), "config", "init"]);
+    cmd.args(["--config", config_path.to_str().unwrap(), "config", "init"]);
     
     cmd.assert()
         .success()
@@ -107,12 +106,12 @@ fn test_config_init_and_show() {
     
     // Initialize config
     let mut cmd = Command::cargo_bin("rumi2").unwrap();
-    cmd.args(&["--config", config_path.to_str().unwrap(), "config", "init"]);
+    cmd.args(["--config", config_path.to_str().unwrap(), "config", "init"]);
     cmd.assert().success();
     
     // Show config
     let mut cmd = Command::cargo_bin("rumi2").unwrap();
-    cmd.args(&["--config", config_path.to_str().unwrap(), "config", "show"]);
+    cmd.args(["--config", config_path.to_str().unwrap(), "config", "show"]);
     
     cmd.assert()
         .success()
@@ -128,12 +127,12 @@ fn test_config_validate_default() {
     
     // Initialize config
     let mut cmd = Command::cargo_bin("rumi2").unwrap();
-    cmd.args(&["--config", config_path.to_str().unwrap(), "config", "init"]);
+    cmd.args(["--config", config_path.to_str().unwrap(), "config", "init"]);
     cmd.assert().success();
     
     // Validate config
     let mut cmd = Command::cargo_bin("rumi2").unwrap();
-    cmd.args(&["--config", config_path.to_str().unwrap(), "config", "validate"]);
+    cmd.args(["--config", config_path.to_str().unwrap(), "config", "validate"]);
     
     cmd.assert()
         .success()
@@ -147,12 +146,12 @@ fn test_dry_run_mode() {
     
     // Initialize config first
     let mut cmd = Command::cargo_bin("rumi2").unwrap();
-    cmd.args(&["--config", config_path.to_str().unwrap(), "config", "init"]);
+    cmd.args(["--config", config_path.to_str().unwrap(), "config", "init"]);
     cmd.assert().success();
     
     // Test dry run with hosting list (should work even without deployments)
     let mut cmd = Command::cargo_bin("rumi2").unwrap();
-    cmd.args(&[
+    cmd.args([
         "--config", config_path.to_str().unwrap(),
         "--dry-run",
         "hosting", "list"
@@ -170,7 +169,7 @@ fn test_verbose_mode() {
     
     // Test verbose mode
     let mut cmd = Command::cargo_bin("rumi2").unwrap();
-    cmd.args(&[
+    cmd.args([
         "--config", config_path.to_str().unwrap(),
         "--verbose",
         "config", "init"
@@ -193,7 +192,7 @@ fn test_invalid_subcommand() {
 fn test_missing_required_args() {
     // Test hosting install without required arguments
     let mut cmd = Command::cargo_bin("rumi2").unwrap();
-    cmd.args(&["hosting", "install"]);
+    cmd.args(["hosting", "install"]);
     
     cmd.assert()
         .failure()
@@ -207,12 +206,12 @@ fn test_config_add_ssh() {
     
     // Initialize config first
     let mut cmd = Command::cargo_bin("rumi2").unwrap();
-    cmd.args(&["--config", config_path.to_str().unwrap(), "config", "init"]);
+    cmd.args(["--config", config_path.to_str().unwrap(), "config", "init"]);
     cmd.assert().success();
     
     // Add SSH configuration
     let mut cmd = Command::cargo_bin("rumi2").unwrap();
-    cmd.args(&[
+    cmd.args([
         "--config", config_path.to_str().unwrap(),
         "config", "add-ssh",
         "--name", "test-server",
@@ -227,7 +226,7 @@ fn test_config_add_ssh() {
     
     // Verify configuration was added
     let mut cmd = Command::cargo_bin("rumi2").unwrap();
-    cmd.args(&["--config", config_path.to_str().unwrap(), "config", "show"]);
+    cmd.args(["--config", config_path.to_str().unwrap(), "config", "show"]);
     
     cmd.assert()
         .success()
@@ -242,12 +241,12 @@ fn test_backup_list_empty() {
     
     // Initialize config
     let mut cmd = Command::cargo_bin("rumi2").unwrap();
-    cmd.args(&["--config", config_path.to_str().unwrap(), "config", "init"]);
+    cmd.args(["--config", config_path.to_str().unwrap(), "config", "init"]);
     cmd.assert().success();
     
     // List backups (should handle gracefully when no deployments exist)
     let mut cmd = Command::cargo_bin("rumi2").unwrap();
-    cmd.args(&["--config", config_path.to_str().unwrap(), "backup", "list"]);
+    cmd.args(["--config", config_path.to_str().unwrap(), "backup", "list"]);
     
     // This might fail due to no SSH configuration, which is expected
     // We're just testing that the command structure is correct
@@ -261,12 +260,12 @@ fn test_hosting_list_empty() {
     
     // Initialize config
     let mut cmd = Command::cargo_bin("rumi2").unwrap();
-    cmd.args(&["--config", config_path.to_str().unwrap(), "config", "init"]);
+    cmd.args(["--config", config_path.to_str().unwrap(), "config", "init"]);
     cmd.assert().success();
     
     // List hosting deployments
     let mut cmd = Command::cargo_bin("rumi2").unwrap();
-    cmd.args(&["--config", config_path.to_str().unwrap(), "hosting", "list"]);
+    cmd.args(["--config", config_path.to_str().unwrap(), "hosting", "list"]);
     
     cmd.assert()
         .success()
@@ -279,7 +278,7 @@ fn test_nonexistent_config_file() {
     let nonexistent_path = "/tmp/nonexistent_dir/config.json";
     
     let mut cmd = Command::cargo_bin("rumi2").unwrap();
-    cmd.args(&["--config", nonexistent_path, "config", "show"]);
+    cmd.args(["--config", nonexistent_path, "config", "show"]);
     
     // Should create a default config if it doesn't exist
     cmd.assert().success();
@@ -288,7 +287,7 @@ fn test_nonexistent_config_file() {
 #[test]
 fn test_ethereum_install_help() {
     let mut cmd = Command::cargo_bin("rumi2").unwrap();
-    cmd.args(&["ethereum", "install", "--help"]);
+    cmd.args(["ethereum", "install", "--help"]);
     
     cmd.assert()
         .success()
@@ -327,17 +326,17 @@ fn test_config_operations_performance() {
     
     // Initialize config
     let mut cmd = Command::cargo_bin("rumi2").unwrap();
-    cmd.args(&["--config", config_path.to_str().unwrap(), "config", "init"]);
+    cmd.args(["--config", config_path.to_str().unwrap(), "config", "init"]);
     cmd.assert().success();
     
     // Show config
     let mut cmd = Command::cargo_bin("rumi2").unwrap();
-    cmd.args(&["--config", config_path.to_str().unwrap(), "config", "show"]);
+    cmd.args(["--config", config_path.to_str().unwrap(), "config", "show"]);
     cmd.assert().success();
     
     // Validate config
     let mut cmd = Command::cargo_bin("rumi2").unwrap();
-    cmd.args(&["--config", config_path.to_str().unwrap(), "config", "validate"]);
+    cmd.args(["--config", config_path.to_str().unwrap(), "config", "validate"]);
     cmd.assert().success();
     
     let duration = start.elapsed();
