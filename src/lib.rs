@@ -1,6 +1,14 @@
 use ssh2::Session;
 use std::net::TcpStream;
+
 pub mod commands;
+pub mod config;
+pub mod error;
+pub mod session;
+pub mod backup;
+
+#[cfg(test)]
+mod tests;
 
 pub const SERVER_BIN_PATH: &str = "/usr/local/bin";
 pub const NGINX_WEB_CONFIG_PATH: &str = "/etc/nginx/sites-available"; // where to put the config files for websites that are available
@@ -20,7 +28,7 @@ impl Rumi2 {
         privatekeydata: String,
         passphrase: String,
     ) -> Session {
-        let tcp = TcpStream::connect(&format!("{host}:22")).expect("Failed to connect to tcp");
+        let tcp = TcpStream::connect(format!("{host}:22")).expect("Failed to connect to tcp");
         let mut session = Session::new().expect("Session could not be started");
         session.set_tcp_stream(tcp);
         session.handshake().expect("handshade didn't worked");
@@ -44,7 +52,7 @@ pub mod ufw {
 
     /// The install command for ufw
     ///
-    pub fn install<'a>(session: &'a Session) {
+    pub fn install(session: &Session) {
         let mut chanel = new_channel(session);
         let command = chanel.exec("sudo apt-get -y install ufw");
         let mut s = String::new();
@@ -53,14 +61,14 @@ pub mod ufw {
         close_channel(&mut chanel);
     }
 
-    pub fn allow_nginx_http<'a>(session: &'a Session) {
+    pub fn allow_nginx_http(session: &Session) {
         let mut chanel = new_channel(session);
         let command = chanel.exec("sudo ufw allow 'Nginx HTTP");
         assert!(command.is_ok(), "Failed to allow Nginx HTTP");
         close_channel(&mut chanel);
     }
 
-    pub fn allow_port_and_443<'a>(session: &'a Session) {
+    pub fn allow_port_and_443(session: &Session) {
         let mut chanel = new_channel(session);
         let command =
             chanel.exec("sudo ufw allow 80 && sudo ufw allow 443 && sudo systemctl restart nginx");
@@ -82,7 +90,7 @@ pub mod nginx {
     use ssh2::Session;
     use std::io::Read;
 
-    pub fn install<'a>(session: &'a Session) {
+    pub fn install(session: &Session) {
         let mut chanel = new_channel(session);
         let command = chanel.exec("sudo apt install -y nginx");
         let mut s = String::new();
@@ -91,7 +99,7 @@ pub mod nginx {
         close_channel(&mut chanel);
     }
 
-    pub fn enable_write_to_folders<'a>(session: &'a Session) {
+    pub fn enable_write_to_folders(session: &Session) {
         let mut chanel = new_channel(session);
         let command = chanel.exec("sudo chmod 777 /var/www/ && sudo chmod 777 /etc/nginx/sites-available/ && sudo chmod 777 /etc/nginx/sites-enabled/");
         assert!(command.is_ok(), "Failed to grant permissions");
@@ -114,14 +122,14 @@ pub mod nginx {
         close_channel(&mut chanel);
     }
 
-    pub fn remove_default_enable_folder<'a>(session: &'a Session) {
+    pub fn remove_default_enable_folder(session: &Session) {
         let mut chanel = new_channel(session);
         let command = chanel.exec("sudo rm /etc/nginx/sites-enabled/default");
         assert!(command.is_ok(), "Failed to remove default nginx config");
         close_channel(&mut chanel);
     }
 
-    pub fn restart<'a>(session: &'a Session) {
+    pub fn restart(session: &Session) {
         let mut chanel = new_channel(session);
         let command =
             chanel.exec("sudo ufw allow 80 && sudo ufw allow 443 && sudo systemctl restart nginx");
@@ -129,7 +137,7 @@ pub mod nginx {
         close_channel(&mut chanel);
     }
 
-    pub fn reload<'a>(session: &'a Session) {
+    pub fn reload(session: &Session) {
         // reload nginx without downtime
         let mut chanel = new_channel(session);
         let command = chanel.exec("sudo systemctl reload nginx");
@@ -146,7 +154,7 @@ pub mod certbot {
     use ssh2::Session;
     use std::io::Read;
 
-    pub fn install<'a>(session: &'a Session) {
+    pub fn install(session: &Session) {
         let mut chanel = new_channel(session);
         let command = chanel.exec("sudo apt install -y certbot");
         let mut s = String::new();
@@ -181,12 +189,12 @@ pub mod utils {
 
     use ssh2::{Channel, Session};
 
-    pub fn new_channel<'a>(session: &'a Session) -> Channel {
-        let channel = session.channel_session().unwrap();
-        channel
+    pub fn new_channel(session: &Session) -> Channel {
+        
+        session.channel_session().unwrap()
     }
 
-    pub fn close_channel<'a>(channel: &'a mut Channel) {
+    pub fn close_channel(channel: &mut Channel) {
         channel.wait_close().expect("closing channel failed");
     }
 

@@ -11,9 +11,17 @@ documentation = "https://docs.rs/rumi2/0.1.0/rumi2/"
 keywords = ["CLI"]
 
 [dependencies]
-clap = "4.5.10"
+clap = { version = "4.5.10", features = ["derive"] }
 ssh2 = "0.9.4"
-
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+anyhow = "1.0"
+log = "0.4"
+env_logger = "0.11"
+chrono = { version = "0.4", features = ["serde"] }
+tokio = { version = "1.0", features = ["full"] }
+dirs = "6.0.0"
 
 [dependencies.uuid]
 version = "1.10.0"
@@ -23,3 +31,9 @@ features = [
     "serde",             # Enable serde support
     "macro-diagnostics", # Enable better diagnostics for compile-time UUIDs
 ]
+
+[dev-dependencies]
+tempfile = "3.8"
+mockall = "0.12"
+assert_cmd = "2.0"
+predicates = "3.0"

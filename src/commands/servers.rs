@@ -1,80 +1,71 @@
-use crate::utils::{close_channel, get_servers_nginx_config_file, new_channel};
+use crate::utils::get_servers_nginx_config_file;
 use crate::NGINX_WEB_CONFIG_PATH;
-use crate::{certbot, nginx, ufw};
-use ssh2::Session;
-use std::fs::File;
-use std::io::prelude::*;
-use std::{io::Write, path::Path};
+use crate::session::RumiSession;
+use crate::error::Result;
+use std::path::Path;
 use uuid::Uuid;
 
-pub fn install_command<'a>(
-    session: &'a Session,
-    domain: &'a str,
-    app_name: &'a str,
-    bin_path: &'a str,
-    port: &'a i32,
-) {
-    ufw::install(session);
-    nginx::install(session);
-    certbot::install(session);
-    ufw::allow_nginx_http(session);
-    certbot::get_ssl_certificate_for_domain(session, domain, "pondonda@gmail.com");
+pub fn install_command(
+    session: &RumiSession,
+    domain: &str,
+    app_name: &str,
+    bin_path: &str,
+    port: &i32,
+) -> Result<()> {
+    // Install required packages
+    session.execute_command_checked("sudo apt-get -y install ufw")?;
+    session.execute_command_checked("sudo apt install -y nginx")?;
+    session.execute_command_checked("sudo apt install -y certbot")?;
+    
+    // Configure firewall
+    session.execute_command_checked("sudo ufw allow 'Nginx HTTP'")?;
+    
+    // Get SSL certificate
+    let certbot_instruction = format!(
+        "sudo certbot certonly -y --standalone -d {} -d www.{} --agree-tos --email pondonda@gmail.com",
+        domain, domain
+    );
+    session.execute_command_checked(&certbot_instruction)?;
 
     let app_release_path = format!("{}/{}", bin_path, app_name);
     let id = Uuid::new_v4();
-    let app_name_full = format!("{}_{}", id.to_string(), app_name);
+    let app_name_full = format!("{}_{}", id, app_name);
     let remote_app_release_path = format!("/usr/local/bin/{}", app_name_full);
 
-    nginx::enable_write_to_folders(session);
+    // Set permissions
+    session.execute_command_checked(
+        "sudo chmod 777 /var/www/ && sudo chmod 777 /etc/nginx/sites-available/ && sudo chmod 777 /etc/nginx/sites-enabled/"
+    )?;
+    session.execute_command_checked("sudo chmod 777 /usr/local/bin/")?;
 
-    let mut chanel = new_channel(session);
-    let command = chanel.exec("sudo chmod 777 /usr/local/bin/");
-    assert!(command.is_ok(), "Failed to set permissions");
-    close_channel(&mut chanel);
+    // Upload the binary
+    session.upload_file(Path::new(&app_release_path), &remote_app_release_path)?;
 
-    let mut local_file = File::open(app_release_path).expect("Failed to open app release file");
-    let file_size = local_file
-        .metadata()
-        .expect("failed getting file meta data")
-        .len();
-    let mut remote_file = session
-        .scp_send(Path::new(&remote_app_release_path), 0o755, file_size, None)
-        .expect("Failed to create remote file");
-    let mut buffer = Vec::new();
-    local_file
-        .read_to_end(&mut buffer)
-        .expect("failed to read to end");
-
-    remote_file.write_all(&buffer).expect("failed to write all");
-    remote_file.send_eof().expect("dddd");
-    remote_file.wait_eof().expect("dddd");
-    remote_file.close().expect("error closing");
-    remote_file.wait_close().expect("dsdsd");
-
-    let mut chanel = new_channel(session);
+    // Make binary executable
     let chmod_command = format!("sudo chmod +x {}", remote_app_release_path);
-    let command = chanel.exec(&chmod_command);
-    assert!(command.is_ok(), "Failed to set permissions");
-    close_channel(&mut chanel);
+    session.execute_command_checked(&chmod_command)?;
 
-    let mut chanel = new_channel(session);
-    let command = chanel.exec(format!("nohup ./{}", &remote_app_release_path).as_str());
-    let mut s = String::new();
-    chanel.read_to_string(&mut s).unwrap();
-    assert!(command.is_ok(), "Failed to launch the server");
-    close_channel(&mut chanel);
+    // Start the server
+    let start_command = format!("nohup {} &", remote_app_release_path);
+    session.execute_command(&start_command)?; // Don't check exit code for nohup
 
-    ufw::allow_port(session, port);
-    let sftp = session.sftp().expect("failed to get sftp");
+    // Allow port through firewall
+    let ufw_command = format!("sudo ufw allow {}", port);
+    session.execute_command_checked(&ufw_command)?;
+
+    // Create nginx configuration
     let nginx_config = get_servers_nginx_config_file(&3000, domain, port);
-
     let config_file_path = format!("{}/{}", NGINX_WEB_CONFIG_PATH, domain);
-    let path = Path::new(&config_file_path);
-    let mut file = sftp
-        .create(path)
-        .expect("failed to create nginx config file");
-    file.write_all(nginx_config.as_bytes())
-        .expect("failed to write nginx config file");
-    nginx::make_site_enabled(session, &config_file_path);
-    nginx::restart(session)
+    session.create_remote_file(&config_file_path, &nginx_config)?;
+
+    // Enable site
+    let enable_command = format!("sudo ln -s {} /etc/nginx/sites-enabled/", config_file_path);
+    session.execute_command_checked(&enable_command)?;
+
+    // Restart nginx
+    session.execute_command_checked(
+        "sudo ufw allow 80 && sudo ufw allow 443 && sudo systemctl restart nginx"
+    )?;
+
+    Ok(())
 }
